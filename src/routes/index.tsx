@@ -1,13 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { toast, Toaster } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { Database, ShieldCheck, LayoutDashboard } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -27,22 +34,23 @@ const schema = z.object({
   email: z.string().trim().toLowerCase().email("Please enter a valid email").max(255),
 });
 
+type Schema = z.infer<typeof schema>;
+
 function Index() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const qc = useQueryClient();
+  const form = useForm<Schema>({
+    resolver: zodResolver(schema),
+    mode: "onBlur",
+    defaultValues: { name: "", email: "" },
+  });
 
   const mutation = useMutation({
-    mutationFn: async (input: { name: string; email: string }) => {
-      const parsed = schema.safeParse(input);
-      if (!parsed.success) {
-        throw new Error(parsed.error.issues[0].message);
-      }
+    mutationFn: async (input: Schema) => {
       // Pre-check duplicate
       const { data: existing, error: selErr } = await supabase
         .from("records")
         .select("id")
-        .eq("email", parsed.data.email)
+        .eq("email", input.email)
         .maybeSingle();
       if (selErr) throw selErr;
       if (existing) {
@@ -50,7 +58,7 @@ function Index() {
         (err as any).code = "DUPLICATE";
         throw err;
       }
-      const { error } = await supabase.from("records").insert(parsed.data);
+      const { error } = await supabase.from("records").insert(input);
       if (error) {
         if (error.code === "23505") {
           const e = new Error("Duplicate record found");
@@ -62,8 +70,7 @@ function Index() {
     },
     onSuccess: () => {
       toast.success("Record saved successfully");
-      setName("");
-      setEmail("");
+      form.reset();
       qc.invalidateQueries({ queryKey: ["records"] });
     },
     onError: (err: Error) => {
@@ -88,40 +95,42 @@ function Index() {
           </p>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate({ name, email });
-          }}
-          className="rounded-2xl border bg-card shadow-sm p-6 sm:p-8 space-y-5"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ada Lovelace"
-              maxLength={100}
-              required
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
+            className="rounded-2xl border bg-card shadow-sm p-6 sm:p-8 space-y-5"
+          >
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ada Lovelace" maxLength={100} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ada@example.com"
-              maxLength={255}
-              required
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="ada@example.com" maxLength={255} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <Button type="submit" disabled={mutation.isPending} className="w-full">
-            {mutation.isPending ? "Submitting..." : "Submit record"}
-          </Button>
-        </form>
+            <Button type="submit" disabled={mutation.isPending} className="w-full">
+              {mutation.isPending ? "Submitting..." : "Submit record"}
+            </Button>
+          </form>
+        </Form>
 
         <div className="mt-6 text-center">
           <Link
