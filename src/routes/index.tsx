@@ -4,7 +4,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast, Toaster } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { createRecord } from "@/lib/records.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,6 +39,7 @@ type Schema = z.infer<typeof schema>;
 
 function Index() {
   const qc = useQueryClient();
+  const create = useServerFn(createRecord);
   const form = useForm<Schema>({
     resolver: zodResolver(schema),
     mode: "onBlur",
@@ -46,27 +48,7 @@ function Index() {
 
   const mutation = useMutation({
     mutationFn: async (input: Schema) => {
-      // Pre-check duplicate
-      const { data: existing, error: selErr } = await supabase
-        .from("records")
-        .select("id")
-        .eq("email", input.email)
-        .maybeSingle();
-      if (selErr) throw selErr;
-      if (existing) {
-        const err = new Error("Duplicate record found");
-        (err as any).code = "DUPLICATE";
-        throw err;
-      }
-      const { error } = await supabase.from("records").insert(input);
-      if (error) {
-        if (error.code === "23505") {
-          const e = new Error("Duplicate record found");
-          (e as any).code = "DUPLICATE";
-          throw e;
-        }
-        throw error;
-      }
+      await create({ data: input });
     },
     onSuccess: () => {
       toast.success("Record saved successfully");
