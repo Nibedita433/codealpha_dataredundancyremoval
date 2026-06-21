@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { Database, LayoutDashboard, Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { listRecords } from "@/lib/records.functions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -13,18 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Record = { id: string; name: string; email: string; created_at: string };
-
 const recordsQuery = queryOptions({
   queryKey: ["records"],
-  queryFn: async (): Promise<Record[]> => {
-    const { data, error } = await supabase
-      .from("records")
-      .select("id, name, email, created_at")
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data ?? [];
-  },
+  queryFn: () => listRecords(),
 });
 
 export const Route = createFileRoute("/dashboard")({
@@ -75,8 +66,7 @@ function DashboardPage() {
 
 function RecordsTable() {
   const { data } = useSuspenseQuery(recordsQuery);
-  const total = data.length;
-  const unique = new Set(data.map((r) => r.email.toLowerCase())).size;
+  const { records, total, unique } = data;
 
   return (
     <>
@@ -95,17 +85,17 @@ function RecordsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
+            {records.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="text-center text-muted-foreground py-10">
                   No records yet. Submit your first one.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((r) => (
+              records.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.email}</TableCell>
+                  <TableCell className="text-muted-foreground">{r.emailMasked}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
                     {new Date(r.created_at).toLocaleString()}
                   </TableCell>
