@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,7 +16,7 @@ import {
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
-import { Database, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { Database, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +38,6 @@ const schema = z.object({
 type Schema = z.infer<typeof schema>;
 
 function Index() {
-  const qc = useQueryClient();
   const create = useServerFn(createRecord);
   const form = useForm<Schema>({
     resolver: zodResolver(schema),
@@ -53,7 +52,6 @@ function Index() {
     onSuccess: () => {
       toast.success("Record saved successfully");
       form.reset();
-      qc.invalidateQueries({ queryKey: ["records"] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -113,15 +111,6 @@ function Index() {
             </Button>
           </form>
         </Form>
-
-        <div className="mt-6 text-center">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-          >
-            <LayoutDashboard className="h-4 w-4" /> View dashboard
-          </Link>
-        </div>
       </main>
     </div>
   );
@@ -143,13 +132,6 @@ function Nav() {
             className="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60"
           >
             Submit
-          </Link>
-          <Link
-            to="/dashboard"
-            activeProps={{ className: "bg-accent text-accent-foreground" }}
-            className="px-3 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60"
-          >
-            Dashboard
           </Link>
         </nav>
       </div>
