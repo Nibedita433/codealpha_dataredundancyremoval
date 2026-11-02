@@ -7,7 +7,7 @@ const inputSchema = z.object({
 });
 
 export const createRecord = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .validator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing, error: selErr } = await supabaseAdmin
