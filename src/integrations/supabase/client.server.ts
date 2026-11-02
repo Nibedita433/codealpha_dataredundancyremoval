@@ -4,14 +4,37 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import fs from 'node:fs';
+import path from 'node:path';
+
+function getEnvValue(key: string): string | undefined {
+  try {
+    for (const file of ['.env.local', '.env']) {
+      const p = path.resolve(process.cwd(), file);
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf8');
+        const match = content.match(new RegExp(`^${key}=["']?([^"'\\r\\n]+)["']?`, 'm'));
+        if (match && match[1]) return match[1].trim();
+      }
+    }
+  } catch {}
+  return process.env[key];
+}
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const SUPABASE_URL =
+    getEnvValue('SUPABASE_URL') ||
+    getEnvValue('VITE_SUPABASE_URL') ||
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL;
+
   const SUPABASE_SERVICE_ROLE_KEY =
+    getEnvValue('SUPABASE_SECRET_KEY') ||
+    getEnvValue('SUPABASE_SERVICE_ROLE_KEY') ||
+    getEnvValue('VITE_SUPABASE_SECRET_KEY') ||
+    getEnvValue('VITE_SUPABASE_SERVICE_ROLE_KEY') ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.VITE_SUPABASE_SECRET_KEY ||
-    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SECRET_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [
