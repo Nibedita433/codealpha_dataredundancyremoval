@@ -15,7 +15,10 @@ export const createRecord = createServerFn({ method: "POST" })
       .select("id")
       .eq("email", data.email)
       .maybeSingle();
-    if (selErr) throw new Error("Could not save record");
+    if (selErr) {
+      console.error("[createRecord] Select error:", selErr);
+      throw new Error(`Could not save record: ${selErr.message || selErr}`);
+    }
     if (existing) {
       const e = new Error("Duplicate record found");
       (e as Error & { code?: string }).code = "DUPLICATE";
@@ -23,12 +26,13 @@ export const createRecord = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("records").insert(data);
     if (error) {
+      console.error("[createRecord] Insert error:", error);
       if (error.code === "23505") {
         const e = new Error("Duplicate record found");
         (e as Error & { code?: string }).code = "DUPLICATE";
         throw e;
       }
-      throw new Error("Could not save record");
+      throw new Error(`Could not save record: ${error.message || error}`);
     }
     return { ok: true as const };
   });
